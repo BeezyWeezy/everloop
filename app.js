@@ -22,7 +22,7 @@ app.use(
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'", "'unsafe-eval'", 'https://telegram.org'],
                 connectSrc: ["'self'", 'https://telegram.org', 'https://infragrid.v.network'],
-                frameSrc: ['https://t.me'],
+                frameSrc: ['https://t.me', "https://oauth.telegram.org"],
                 imgSrc: ["'self'", 'data:', 'https://telegram.org'],
             },
         },
