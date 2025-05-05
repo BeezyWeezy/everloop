@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start server": "node app.js",
-    "main": "/server/app.js"
+    "main": "server/app.js"
   },
   "private": true,
   "dependencies": {
