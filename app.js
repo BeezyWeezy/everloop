@@ -91,13 +91,6 @@ app.post('/auth/telegram', async (req, res) => {
 const staticDir = path.join(__dirname, 'web');
 app.use(express.static(staticDir, { extensions: ['html', 'js', 'css'] }));
 
-app.get('/', (_, res) => {
-    const htmlPath = path.join(staticDir, 'index.html');
-    let html = fs.readFileSync(htmlPath, 'utf8');
-    html = html.replace('__BOTNAME__', process.env.TELEGRAM_BOT_USERNAME);
-    res.type('html').send(html);
-});
-
 // health
 app.get('/api/ping', (_, res) => res.json({ ok: true }));
 
