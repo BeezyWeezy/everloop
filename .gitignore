@@ -1,5 +1,5 @@
 .idea
-server/.env
+/server/.env
 node_modules
 # Default ignored files
 /shelf/
