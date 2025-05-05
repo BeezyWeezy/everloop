@@ -7,119 +7,96 @@ import path    from 'node:path';
 import fs      from 'node:fs';
 import crypto  from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { MongoClient, ServerApiVersion } from 'mongodb';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// ───────────────────────── Express init ─────────────────────────
-const app = express();
-app.use(express.json());
-app.use(
-    helmet({
-        contentSecurityPolicy: {
-            directives: {
-                defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-eval'", 'https://telegram.org'],
-                connectSrc: ["'self'", 'https://telegram.org', 'https://infragrid.v.network'],
-                frameSrc:  ["https://t.me", "https://oauth.telegram.org"],
-                imgSrc:    ["'self'", 'data:', 'https://telegram.org'],
-            },
-        },
-    })
-);
+/* ───────────────────────── Mongo init ───────────────────────── */
+mongoose.set('strictQuery', true);
 
-// ───────────────────────── MongoDB ─────────────────────────
-
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(process.env.MONGO_URI, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    }
-});
-
-async function run() {
+async function connectDB() {
     try {
-        // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-        // Ensures that the client will close when you finish/error
-        await client.close();
+        await mongoose.connect(process.env.MONGO_URI, {
+            serverSelectionTimeoutMS: 5000,
+        });
+        console.log('✅ MongoDB connected');
+    } catch (err) {
+        console.error('❌ Mongo connection failed:', err.message);
+        process.exit(1);
     }
 }
-run().catch(console.dir);
+await connectDB();
 
-(async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('MongoDB connected');
-    } catch (err) {
-        console.error('Mongo error', err);
-    }
-})();
+/* ───────────────────────── Mongoose models ───────────────────────── */
+const userSchema = new mongoose.Schema({
+    telegram_id: { type: Number, unique: true, required: true },
+    username:    String,
+    first_name:  String,
+    last_name:   String,
+    photo_url:   String,
+    paid_until:  Date,
+}, { timestamps: true });
 
-const User = mongoose.model(
-    'User',
-    new mongoose.Schema({
-        telegram_id: { type: Number, unique: true, required: true },
-        username:    String,
-        first_name:  String,
-        last_name:   String,
-        photo_url:   String,
-        paid_until:  Date,
-    })
-);
+const User = mongoose.model('User', userSchema);
 
-// ───────────────────────── Helpers ─────────────────────────
-function validateTelegramAuth(data) {
-    const { hash, ...fields } = data;
+/* ───────────────────────── Helpers ───────────────────────── */
+function isValidTG(reqBody) {
+    const { hash, ...fields } = reqBody;
     const secret = crypto
         .createHash('sha256')
         .update(process.env.TELEGRAM_BOT_TOKEN)
         .digest();
-
-    const checkString = Object.keys(fields)
-        .sort()
-        .map((k) => `${k}=${fields[k]}`)
+    const check = Object.entries(fields)
+        .sort(([a],[b])=>a.localeCompare(b))
+        .map(([k,v])=>`${k}=${v}`)
         .join('');
-
-    const hmac = crypto.createHmac('sha256', secret).update(checkString).digest('hex');
+    const hmac = crypto.createHmac('sha256', secret).update(check).digest('hex');
     return hmac === hash;
 }
 
-// ───────────────────────── Routes ─────────────────────────
-app.post('/auth/telegram', async (req, res) => {
-    const auth = req.body;
-    if (!validateTelegramAuth(auth))
-        return res.status(401).json({ error: 'invalid hash' });
+/* ───────────────────────── Express init ───────────────────────── */
+const app = express();
+app.use(express.json());
+app.use(helmet({
+    contentSecurityPolicy:{
+        directives:{
+            defaultSrc:["'self'"],
+            scriptSrc:["'self'","'unsafe-eval'",'https://telegram.org'],
+            connectSrc:["'self'",'https://telegram.org','https://infragrid.v.network'],
+            frameSrc:['https://t.me','https://oauth.telegram.org'],
+            imgSrc:["'self'",'data:','https://telegram.org'],
+        }
+    }
+}));
 
-    const { id: telegram_id, username, first_name, last_name, photo_url } = auth;
+/* ───────────────────────── Routes ───────────────────────── */
+app.post('/auth/telegram', async (req,res)=>{
+    if(!isValidTG(req.body)) return res.status(401).json({error:'invalid hash'});
+    const { id:telegram_id, username, first_name, last_name, photo_url } = req.body;
 
-    await User.findOneAndUpdate(
+    const user = await User.findOneAndUpdate(
         { telegram_id },
-        { username, first_name, last_name, photo_url },
-        { upsert: true }
+        { $set:{ username, first_name, last_name, photo_url } },
+        { new:true, upsert:true }
     );
-
-    const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    console.log('➕ Authenticated TG user', user.telegram_id);
+    const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn:'24h' });
     res.json({ token });
 });
 
 // static landing with runtime substitution
-const staticDir = path.join(__dirname, 'web');
-app.use(express.static(staticDir, { extensions: ['html', 'js', 'css'] }));
+// const staticDir = path.join(__dirname,'web');
+// app.use(express.static(staticDir,{ extensions:['html','js','css'] }));
+// app.get('/',(_,res)=>{
+//     const html = fs.readFileSync(path.join(staticDir,'index.html'),'utf8')
+//         .replace('__BOTNAME__', process.env.TELEGRAM_BOT_USERNAME);
+//     res.type('html').send(html);
+// });
 
-// health
-app.get('/api/ping', (_, res) => res.json({ ok: true }));
+app.get('/api/ping',(_,res)=>res.json({ok:true}));
 
-// ───────────────────────── Start ─────────────────────────
+/* ───────────────────────── Start server ───────────────────────── */
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, ()=>console.log(`🚀 Server on ${PORT}`));
