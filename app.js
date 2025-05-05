@@ -51,7 +51,7 @@ function isValidTG(reqBody) {
     const check = Object.entries(fields)
         .sort(([a],[b])=>a.localeCompare(b))
         .map(([k,v])=>`${k}=${v}`)
-        .join('');
+        .join('\\n');
     const hmac = crypto.createHmac('sha256', secret).update(check).digest('hex');
     return hmac === hash;
 }
@@ -59,6 +59,7 @@ function isValidTG(reqBody) {
 /* ───────────────────────── Express init ───────────────────────── */
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(helmet({
     contentSecurityPolicy:{
         directives:{
