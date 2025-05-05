@@ -17,10 +17,10 @@ app.use(helmet());
 app.use(express.json());
 
 // --- Database init ---
-(async () => {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected");
-})();
+// (async () => {
+//     await mongoose.connect(process.env.MONGO_URI);
+//     console.log("MongoDB connected");
+// })();
 
 // --- User schema ---
 const userSchema = new mongoose.Schema({
