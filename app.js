@@ -1,10 +1,11 @@
 import express from 'express';
-import helmet from 'helmet';
-import jwt from 'jsonwebtoken';
+import helmet  from 'helmet';
+import jwt     from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import path from 'node:path';
-import crypto from 'node:crypto';
+import dotenv  from 'dotenv';
+import path    from 'node:path';
+import fs      from 'node:fs';
+import crypto  from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 dotenv.config();
@@ -22,8 +23,8 @@ app.use(
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'", "'unsafe-eval'", 'https://telegram.org'],
                 connectSrc: ["'self'", 'https://telegram.org', 'https://infragrid.v.network'],
-                frameSrc: ['https://t.me', "https://oauth.telegram.org"],
-                imgSrc: ["'self'", 'data:', 'https://telegram.org'],
+                frameSrc:  ["https://t.me", "https://oauth.telegram.org"],
+                imgSrc:    ["'self'", 'data:', 'https://telegram.org'],
             },
         },
     })
@@ -43,11 +44,11 @@ const User = mongoose.model(
     'User',
     new mongoose.Schema({
         telegram_id: { type: Number, unique: true, required: true },
-        username: String,
-        first_name: String,
-        last_name: String,
-        photo_url: String,
-        paid_until: Date,
+        username:    String,
+        first_name:  String,
+        last_name:   String,
+        photo_url:   String,
+        paid_until:  Date,
     })
 );
 
@@ -71,7 +72,8 @@ function validateTelegramAuth(data) {
 // ───────────────────────── Routes ─────────────────────────
 app.post('/auth/telegram', async (req, res) => {
     const auth = req.body;
-    if (!validateTelegramAuth(auth)) return res.status(401).json({ error: 'invalid hash' });
+    if (!validateTelegramAuth(auth))
+        return res.status(401).json({ error: 'invalid hash' });
 
     const { id: telegram_id, username, first_name, last_name, photo_url } = auth;
 
@@ -85,10 +87,16 @@ app.post('/auth/telegram', async (req, res) => {
     res.json({ token });
 });
 
-// static landing
+// static landing with runtime substitution
 const staticDir = path.join(__dirname, 'web');
-app.use(express.static(staticDir, { extensions: ['html'] }));
-app.get('/', (_, res) => res.sendFile(path.join(staticDir, 'index.html')));
+app.use(express.static(staticDir, { extensions: ['html', 'js', 'css'] }));
+
+app.get('/', (_, res) => {
+    const htmlPath = path.join(staticDir, 'index.html');
+    let html = fs.readFileSync(htmlPath, 'utf8');
+    html = html.replace('__BOTNAME__', process.env.TELEGRAM_BOT_USERNAME);
+    res.type('html').send(html);
+});
 
 // health
 app.get('/api/ping', (_, res) => res.json({ ok: true }));
