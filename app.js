@@ -1,101 +1,98 @@
-import express from "express";
-import helmet from "helmet";
-import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import crypto from "node:crypto";
+import express from 'express';
+import helmet from 'helmet';
+import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname  = path.dirname(__filename);
 
+// ───────────────────────── Express init ─────────────────────────
 const app = express();
+app.use(express.json());
 app.use(
     helmet({
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "https://telegram.org"],
-                frameSrc: ["'self'", "https://t.me"],
-                imgSrc: ["'self'", "data:", "https://telegram.org"],
+                scriptSrc: ["'self'", "'unsafe-eval'", 'https://telegram.org'],
+                connectSrc: ["'self'", 'https://telegram.org', 'https://infragrid.v.network'],
+                frameSrc: ['https://t.me'],
+                imgSrc: ["'self'", 'data:', 'https://telegram.org'],
             },
         },
     })
 );
-app.use(express.json());
 
-// --- Database init ---
+// ───────────────────────── MongoDB ─────────────────────────
 (async () => {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected");
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('MongoDB connected');
+    } catch (err) {
+        console.error('Mongo error', err);
+    }
 })();
 
-// --- User schema ---
-const userSchema = new mongoose.Schema({
-    telegram_id: { type: Number, required: true, unique: true },
-    username: String,
-    first_name: String,
-    last_name: String,
-    photo_url: String,
-    paid_until: Date,
-});
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model(
+    'User',
+    new mongoose.Schema({
+        telegram_id: { type: Number, unique: true, required: true },
+        username: String,
+        first_name: String,
+        last_name: String,
+        photo_url: String,
+        paid_until: Date,
+    })
+);
 
-// --- Telegram login validation helper ---
+// ───────────────────────── Helpers ─────────────────────────
 function validateTelegramAuth(data) {
     const { hash, ...fields } = data;
     const secret = crypto
-        .createHash("sha256")
+        .createHash('sha256')
         .update(process.env.TELEGRAM_BOT_TOKEN)
         .digest();
+
     const checkString = Object.keys(fields)
         .sort()
         .map((k) => `${k}=${fields[k]}`)
-        .join("\n");
-    const hmac = crypto
-        .createHmac("sha256", secret)
-        .update(checkString)
-        .digest("hex");
+        .join('');
+
+    const hmac = crypto.createHmac('sha256', secret).update(checkString).digest('hex');
     return hmac === hash;
 }
 
-// --- POST /auth/telegram ---
-app.post("/auth/telegram", async (req, res) => {
-    const authData = req.body;
-    if (!validateTelegramAuth(authData)) return res.status(401).json({ error: "invalid hash" });
+// ───────────────────────── Routes ─────────────────────────
+app.post('/auth/telegram', async (req, res) => {
+    const auth = req.body;
+    if (!validateTelegramAuth(auth)) return res.status(401).json({ error: 'invalid hash' });
 
-    const {
-        id: telegram_id,
-        username,
-        first_name,
-        last_name,
-        photo_url,
-    } = authData;
+    const { id: telegram_id, username, first_name, last_name, photo_url } = auth;
 
     await User.findOneAndUpdate(
         { telegram_id },
         { username, first_name, last_name, photo_url },
-        { upsert: true, new: true }
+        { upsert: true }
     );
 
-    const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: "24h" });
+    const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
     res.json({ token });
 });
 
-// --- Serve static landing ---
-const staticDir = path.join(__dirname, "web");
-app.use(express.static(staticDir, { extensions: ["html"] }));
+// static landing
+const staticDir = path.join(__dirname, 'web');
+app.use(express.static(staticDir, { extensions: ['html'] }));
+app.get('/', (_, res) => res.sendFile(path.join(staticDir, 'index.html')));
 
-// Fallback: if / requested directly, send index.html
-app.get("/", (_req, res) => {
-    res.sendFile(path.join(staticDir, "index.html"));
-});
+// health
+app.get('/api/ping', (_, res) => res.json({ ok: true }));
 
-// --- Protected example route ---
-app.get("/api/ping", (req, res) => res.json({ ok: true }));
-
-const port = process.env.PORT || 8080;
-app.listen(port, () => console.log(`Server running on ${port}`));
+// ───────────────────────── Start ─────────────────────────
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
