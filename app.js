@@ -17,10 +17,10 @@ app.use(helmet());
 app.use(express.json());
 
 // --- Database init ---
-// (async () => {
-//     await mongoose.connect(process.env.MONGO_URI);
-//     console.log("MongoDB connected");
-// })();
+(async () => {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB connected");
+})();
 
 // --- User schema ---
 const userSchema = new mongoose.Schema({
@@ -75,7 +75,13 @@ app.post("/auth/telegram", async (req, res) => {
 });
 
 // --- Serve static landing ---
-app.use(express.static(path.join(__dirname, "../web")));
+const staticDir = path.join(__dirname, "web");
+app.use(express.static(staticDir, { extensions: ["html"] }));
+
+// Fallback: if / requested directly, send index.html
+app.get("/", (_req, res) => {
+    res.sendFile(path.join(staticDir, "index.html"));
+});
 
 // --- Protected example route ---
 app.get("/api/ping", (req, res) => res.json({ ok: true }));
