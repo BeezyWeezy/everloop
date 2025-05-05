@@ -1,10 +1,10 @@
 {
   "name": "everloop",
   "version": "0.1.0",
-  "main": "server/app.js",
+  "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "node server/app.js"
+    "start": "node app.js"
   },
   "private": true,
   "dependencies": {
