@@ -87,8 +87,8 @@ app.post('/auth/telegram', async (req,res)=>{
 });
 
 // static landing with runtime substitution
-// const staticDir = path.join(__dirname,'web');
-// app.use(express.static(staticDir,{ extensions:['html','js','css'] }));
+const staticDir = path.join(__dirname,'web');
+app.use(express.static(staticDir,{ extensions:['html','js','css'] }));
 // app.get('/',(_,res)=>{
 //     const html = fs.readFileSync(path.join(staticDir,'index.html'),'utf8')
 //         .replace('__BOTNAME__', process.env.TELEGRAM_BOT_USERNAME);
