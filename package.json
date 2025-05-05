@@ -1,12 +1,10 @@
 {
-  "name": "Everloop",
-  "version": "1.0.0",
-  "description": "",
-  "main": "../index.js",
+  "name": "everloop",
+  "version": "0.1.0",
+  "main": "server/app.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start server": "node app.js",
-    "main": "server/app.js"
+    "start": "node server/app.js"
   },
   "private": true,
   "dependencies": {
