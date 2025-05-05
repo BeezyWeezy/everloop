@@ -13,7 +13,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "https://telegram.org"],
+                frameSrc: ["'self'", "https://t.me"],
+                imgSrc: ["'self'", "data:", "https://telegram.org"],
+            },
+        },
+    })
+);
 app.use(express.json());
 
 // --- Database init ---
