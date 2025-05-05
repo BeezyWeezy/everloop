@@ -4,28 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Everloop | Content Discovery Platform</title>
-    <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="${TELEGRAM_BOT_USERNAME}" data-size="large" data-userpic="false" data-request-access="write" data-onauth="onTelegramAuth(user)"></script>
-    <script>
-        async function onTelegramAuth(user) {
-            const res = await fetch('/auth/telegram', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(user)
-            });
-            const data = await res.json();
-            if (data.token) {
-                document.cookie = `jwt=${data.token};path=/;SameSite=Lax`;
-                document.getElementById('status').textContent = 'Logged in!';
-            } else {
-                alert('Auth failed');
-            }
-        }
-    </script>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 10vh; }
         h1 { margin-bottom: 8px; }
         p { max-width: 480px; text-align: center; }
     </style>
+    <!-- External JS with onTelegramAuth must load before widget -->
+    <script src="auth.js" defer></script>
+    <script async src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="${TELEGRAM_BOT_USERNAME}"
+            data-size="large" data-userpic="false"
+            data-request-access="write"
+            data-onauth="onTelegramAuth(user)"></script>
 </head>
 <body>
 <h1>Everloop</h1>
