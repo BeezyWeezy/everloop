@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 import dotenv from "dotenv";
 
 dotenv.config();
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 bot.command('login', async ctx => {
     const res = await fetch(`${process.env.BASE_URL}/api/create-login-code`, {
