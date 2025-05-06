@@ -75,6 +75,11 @@ function authRequired(req, res, next) {
 
 app.get('/api/ping', authRequired, (_, res) => res.json({ ok: true }));
 
+app.get('/logout', (_req, res) => {
+    res.clearCookie('jwt', { sameSite: 'lax' });
+    return res.redirect('/');
+});
+
 const staticDir = path.join(__dirname, 'web');
 app.use(express.static(staticDir, { extensions: ['html'] }));
 
