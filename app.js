@@ -76,6 +76,8 @@ app.get('/auth/telegram', async (req, res) => {
 
 /* ─── Bot creates one‑time login URL ─── */
 app.post('/api/create-login-code', async (req, res) => {
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
     if (req.get('x-bot-token') !== process.env.BOT_API_SECRET) return res.sendStatus(403);
     const { telegram_id } = req.body;
     const code = uuid();
