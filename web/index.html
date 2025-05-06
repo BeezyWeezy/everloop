@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Everloop | Content Discovery Platform</title>
     <link rel="stylesheet" href="styles/style.css" />    <!-- External JS with onTelegramAuth must load before widget -->
-    <script src="auth.js"></script>
 </head>
 <body>
 <h1>Everloop</h1>
 <p>Continuous content discovery & trend analysis. Login with Telegram to get started.</p>
 <!-- Telegram Login button placeholder -->
 <div id="tg-login"></div>
+<script src="auth.js"></script>
 <script async src="https://telegram.org/js/telegram-widget.js?22"
         data-telegram-login="everloopad_bot" data-size="large" data-userpic="false"
         data-request-access="write" data-onauth="onTelegramAuth"

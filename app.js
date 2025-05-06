@@ -27,7 +27,7 @@ const User = mongoose.model('User', new mongoose.Schema({
 function checkTelegramHash(data) {
     const { hash, ...fields } = data;
     const secret = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN).digest();
-    const check = Object.keys(fields).sort().map(k => `${k}=${fields[k]}`).join('\n');
+    const check = Object.keys(fields).sort().map(k => `${k}=${fields[k]}`).join('\\n');
     const hmac  = crypto.createHmac('sha256', secret).update(check).digest('hex');
     return hmac === hash;
 }
@@ -67,5 +67,7 @@ app.get('/', (_, res) => {
     const html = fs.readFileSync(path.join(staticDir, 'index.html'), 'utf8').replace('__BOTNAME__', process.env.TELEGRAM_BOT_USERNAME);
     res.type('html').send(html);
 });
+
+app.get('/test', (_, res) => res.json({ ok: true }));
 
 app.listen(process.env.PORT || 8080, () => console.log('🚀 Server running'));
