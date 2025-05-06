@@ -49,6 +49,7 @@ app.use(helmet({
 
 /* ───── Routes ───── */
 app.post('/auth/telegram', async (req, res) => {
+    console.log(req, res);
     if (!checkTelegramHash(req.body)) return res.status(401).json({ error: 'invalid hash' });
     const { id: telegram_id, username, first_name, last_name, photo_url } = req.body;
     const user = await User.findOneAndUpdate({ telegram_id }, { username, first_name, last_name, photo_url }, { new: true, upsert: true });
