@@ -1,13 +1,12 @@
 import express from 'express';
-import helmet  from 'helmet';
 import jwt     from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import dotenv  from 'dotenv';
 import path    from 'node:path';
-import fs      from 'node:fs';
 import crypto  from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -17,11 +16,13 @@ await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 }
 console.log('✅ Mongo connected:', mongoose.connection.name);
 
 dotenv.config();
+
 const app = express();
 app.use(cors());
+app.use(cookieParser());
 app.use(express.json());
 
-// Dummy schema for example
+// Dummy schema
 const UserSchema = new mongoose.Schema({
     telegram_id: { type: Number, unique: true },
     username: String,
@@ -53,9 +54,26 @@ app.get('/auth/telegram', async (req, res) => {
     );
     console.log('Saved user:', user);
 
-    const token = jwt.sign({ telegram_id: id }, process.env.JWT_SECRET || 'changeme', { expiresIn: '24h' });
-    res.send(`<h1>Login successful</h1><p>Your token: ${token}</p>`);
+    const token = jwt.sign({ telegram_id: id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('jwt', token, {
+          httpOnly: true,
+          sameSite: 'lax',
+          maxAge: 24 * 3600 * 1000 // 1day
+    });
+    res.redirect('/dashboard.html');
 });
+
+function authRequired(req, res, next) {
+    try {
+        const payload = jwt.verify(req.cookies.jwt, process.env.JWT_SECRET);
+        req.user = payload;
+        next();
+    } catch {
+        return res.status(401).json({ error: 'unauthorized' });
+    }
+}
+
+app.get('/api/ping', authRequired, (_, res) => res.json({ ok: true }));
 
 const staticDir = path.join(__dirname, 'web');
 app.use(express.static(staticDir, { extensions: ['html'] }));
