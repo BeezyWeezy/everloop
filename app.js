@@ -63,6 +63,7 @@ app.get('/auth/telegram', async (req, res) => {
     res.redirect('/dashboard.html');
 });
 
+/* ─── Auth middleware ─── */
 function authRequired(req, res, next) {
     try {
         const payload = jwt.verify(req.cookies.jwt, process.env.JWT_SECRET);
@@ -72,9 +73,14 @@ function authRequired(req, res, next) {
         return res.status(401).json({ error: 'unauthorized' });
     }
 }
+/* ─── Protected routes ─── */
+app.get('/dashboard.html', authRequired, (_req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'dashboard.html'));
+});
 
 app.get('/api/ping', authRequired, (_, res) => res.json({ ok: true }));
 
+/* ─── Logout ─── */
 app.get('/logout', (_req, res) => {
     res.clearCookie('jwt', { sameSite: 'lax' });
     return res.redirect('/');
