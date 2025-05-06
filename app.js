@@ -57,6 +57,7 @@ const User = mongoose.model('User', userSchema);
 /* ───────────────────────── Helpers ───────────────────────── */
 function isValidTG(reqBody) {
     const { hash, ...fields } = reqBody;
+    console.log(reqBody);
     const secret = crypto
         .createHash('sha256')
         .update(process.env.TELEGRAM_BOT_TOKEN)
