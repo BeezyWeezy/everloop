@@ -64,7 +64,7 @@ function isValidTG(reqBody) {
     const check = Object.entries(fields)
         .sort(([a],[b])=>a.localeCompare(b))
         .map(([k,v])=>`${k}=${v}`)
-        .join('\n');
+        .join('\\n');
     const hmac = crypto.createHmac('sha256', secret).update(check).digest('hex');
     return hmac === hash;
 }
