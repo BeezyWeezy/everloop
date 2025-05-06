@@ -43,7 +43,7 @@ app.use(helmet({ contentSecurityPolicy: { directives: {
             connectSrc:["'self'",'https://telegram.org'],
             imgSrc:["'self'",'data:','https://telegram.org'] } } }));
 
-app.post('/auth/telegram', async (req, res) => {
+app.get('/auth/telegram', async (req, res) => {
     console.log('POST /auth/telegram BODY', req.body);
     if (!checkTelegramHash(req.body)) return res.status(401).json({ error: 'invalid hash' });
     const { id: telegram_id, username, first_name, last_name, photo_url } = req.body;
