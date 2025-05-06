@@ -1,10 +1,11 @@
 window.onTelegramAuth = async function (user) {
     console.log('AUTH DATA >>>', user); // debug
     try {
-        const res = await fetch('/auth/telegram', {
+        const body = new URLSearchParams(user).toString();
+        fetch('/auth/telegram', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(user)
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body
         });
         const data = await res.json();
         if (data.token) {
