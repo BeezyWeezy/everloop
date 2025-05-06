@@ -3,7 +3,7 @@ window.onTelegramAuth = async (user) => {
         const res = await fetch('/auth/telegram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams(user).toString()
+            body: new URLSearchParams(Object.entries(user)).toString()
         });
         const data = await res.json();
         if (data.token) document.getElementById('status').textContent = 'Logged in!';
