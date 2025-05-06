@@ -7,6 +7,7 @@ import crypto  from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { v4 as uuid } from 'uuid';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -29,7 +30,16 @@ const UserSchema = new mongoose.Schema({
     first_name: String,
     last_name: String,
     auth_date: Number // Unix timestamp from Telegram
-});const User = mongoose.model('User', UserSchema);
+});
+const User = mongoose.model('User', UserSchema);
+
+const LoginCodeSchema = new mongoose.Schema({
+    code: { type: String, unique: true },
+    telegram_id: { type: Number, unique: true },
+    expires_in: Date,
+});
+
+const LoginCode = mongoose.model('LoginCode', LoginCodeSchema);
 
 app.get('/auth/telegram', async (req, res) => {
     console.log('Received GET /auth/telegram', req.query);
@@ -53,6 +63,7 @@ app.get('/auth/telegram', async (req, res) => {
         { upsert: true, new: true }
     );
     console.log('Saved user:', user);
+    issueJwtAndRedirect(res, id);
 
     const token = jwt.sign({ telegram_id: id }, process.env.JWT_SECRET, { expiresIn: '24h' });
     res.cookie('jwt', token, {
@@ -62,6 +73,32 @@ app.get('/auth/telegram', async (req, res) => {
     });
     res.redirect('/dashboard.html');
 });
+
+/* ─── Bot creates one‑time login URL ─── */
+app.post('/api/create-login-code', async (req, res) => {
+    if (req.get('x-bot-token') !== process.env.BOT_API_SECRET) return res.sendStatus(403);
+    const { telegram_id } = req.body;
+    const code = uuid();
+    await LoginCode.create({ code, telegram_id, expires_at: Date.now() + 10 * 60 * 1000 });
+    res.json({ url: `${process.env.BASE_URL}/bot-login?code=${code}` });
+});
+
+/* ─── User opens link from bot ─── */
+app.get('/bot-login', async (req, res) => {
+    const { code } = req.query;
+    const doc = await LoginCode.findOneAndDelete({ code, expires_at: { $gt: Date.now() } });
+    if (!doc) return res.status(410).send('Link expired');
+    const user = await User.findOne({ telegram_id: doc.telegram_id });
+    if (!user) return res.status(401).send('User not found');
+    issueJwtAndRedirect(res, user.telegram_id);
+});
+
+/* ─── Helper to set cookie + redirect ─── */
+function issueJwtAndRedirect(res, telegram_id) {
+    const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('jwt', token, { httpOnly: true, sameSite: 'lax', maxAge: 86400_000 });
+    res.redirect('/dashboard.html');
+}
 
 /* ─── Auth middleware ─── */
 function authRequired(req, res, next) {
@@ -73,6 +110,7 @@ function authRequired(req, res, next) {
         return res.status(401).json({ error: 'unauthorized' });
     }
 }
+
 /* ─── Protected routes ─── */
 app.get('/dashboard.html', authRequired, (_req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'dashboard.html'));

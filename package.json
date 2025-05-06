@@ -4,7 +4,10 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "bot": "node bot/bot.js",
+    "dev": "nodemon app.js",
+    "bot:dev": "nodemon bot/bot.js"
   },
   "private": true,
   "dependencies": {
@@ -16,6 +19,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.16.0",
     "mongoose": "^8.14.1",
-    "node-telegram-bot-api": "^0.66.0"
+    "node-fetch": "^3.3.2",
+    "node-telegram-bot-api": "^0.66.0",
+    "telegraf": "^4.16.3",
+    "uuid": "^11.1.0"
   }
 }
