@@ -76,8 +76,15 @@ app.get('/auth/telegram', async (req, res) => {
 
 /* ─── Bot creates one‑time login URL ─── */
 app.post('/api/create-login-code', async (req, res) => {
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
+    console.log('API create-login-code called');
+    console.log('x-bot-token header:', req.get('x-bot-token'));
+    console.log('All headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+    if (req.get('x-bot-token') !== process.env.BOT_API_SECRET) {
+        console.warn('Forbidden: invalid BOT_API_SECRET');
+        return res.sendStatus(403);
+    }
     if (req.get('x-bot-token') !== process.env.BOT_API_SECRET) return res.sendStatus(403);
     const { telegram_id } = req.body;
     const code = uuid();
