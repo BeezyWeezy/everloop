@@ -92,7 +92,10 @@ app.use(helmet({
 /* ───────────────────────── Routes ───────────────────────── */
 app.post('/auth/telegram', async (req,res)=>{
     console.log('TG BODY >>>', req.body);
-    if(!isValidTG(req.body)) return res.status(401).json({error:'invalid hash'});
+    if(!isValidTG(req.body)) {
+        console.log('DEBUG HASH FAIL');
+        return res.status(401).json({error:'invalid hash'});
+    }
     const { id:telegram_id, username, first_name, last_name, photo_url } = req.body;
 
     console.log(req.body);
