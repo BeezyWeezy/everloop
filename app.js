@@ -63,10 +63,6 @@ app.post('/auth/telegram', async (req, res) => {
 
 const staticDir = path.join(__dirname, 'web');
 app.use(express.static(staticDir, { extensions: ['html'] }));
-app.get('/', (_, res) => {
-    const html = fs.readFileSync(path.join(staticDir, 'index.html'), 'utf8').replace('__BOTNAME__', process.env.TELEGRAM_BOT_USERNAME);
-    res.type('html').send(html);
-});
 
 app.get('/test', (_, res) => res.json({ ok: true }));
 
