@@ -7,6 +7,7 @@ import path    from 'node:path';
 import fs      from 'node:fs';
 import crypto  from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import cors from 'cors';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -15,55 +16,39 @@ const __dirname  = path.dirname(__filename);
 await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
 console.log('✅ Mongo connected:', mongoose.connection.name);
 
-const User = mongoose.model('User', new mongoose.Schema({
-    telegram_id: { type: Number, unique: true },
-    username: String,
-    first_name: String,
-    last_name: String,
-    photo_url: String,
-    paid_until: Date,
-}, { timestamps: true }));
-
-function checkTelegramHash(data) {
-    const { hash, ...fields } = data;
-    const secret = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN).digest();
-    const check = Object.keys(fields).sort().map(k => `${k}=${fields[k]}`).join('\\n');
-    const hmac  = crypto.createHmac('sha256', secret).update(check).digest('hex');
-    return hmac === hash;
-}
-
+dotenv.config();
 const app = express();
-app.use((req,res,next)=>{console.log('REQ >>>', req.method, req.url); next();});
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(helmet({ contentSecurityPolicy: { directives: {
-            defaultSrc:["'self'"],
-            scriptSrc:["'self'","'unsafe-eval'",'https://telegram.org'],
-            frameSrc:['https://t.me','https://oauth.telegram.org'],
-            connectSrc:["'self'",'https://telegram.org'],
-            imgSrc:["'self'",'data:','https://telegram.org'] } } }));
 
-app.get('/auth/telegram', async (req, res) => {
-    console.log('POST /auth/telegram BODY', req.body);
-    if (!checkTelegramHash(req.body)) return res.status(401).json({ error: 'invalid hash' });
-    const { id: telegram_id, username, first_name, last_name, photo_url } = req.body;
-    try {
-        const user = await User.findOneAndUpdate(
-            { telegram_id },
-            { username, first_name, last_name, photo_url },
-            { new: true, upsert: true }
-        );
-        console.log('✅ User saved:', user.telegram_id);
-        res.json({ token: jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: '24h' }) });
-    } catch (err) {
-        console.error('❌ Mongo error:', err.message);
-        res.status(500).json({ error: 'mongo error' });
-    }
+// Dummy schema for example
+const UserSchema = new mongoose.Schema({ telegram_id: Number, username: String });
+const User = mongoose.model('User', UserSchema);
+
+app.post('/auth/telegram', async (req, res) => {
+    console.log('Received POST /auth/telegram', req.body);
+
+    const { id, username, first_name, last_name, hash, auth_date } = req.body;
+    if (!id || !hash) return res.status(400).json({ error: 'Missing id or hash' });
+
+    const secret = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN).digest();
+    const checkString = Object.entries(req.body)
+        .filter(([k]) => k !== 'hash')
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n');
+    const hmac = crypto.createHmac('sha256', secret).update(checkString).digest('hex');
+
+    if (hmac !== hash) return res.status(401).json({ error: 'Invalid hash' });
+
+    const user = await User.findOneAndUpdate({ telegram_id: id }, { username, first_name, last_name }, { upsert: true, new: true });
+    console.log('Saved user:', user);
+
+    const token = jwt.sign({ telegram_id: id }, process.env.JWT_SECRET || 'changeme', { expiresIn: '24h' });
+    res.json({ token });
 });
 
 const staticDir = path.join(__dirname, 'web');
 app.use(express.static(staticDir, { extensions: ['html'] }));
-
-app.get('/test', (_, res) => res.json({ ok: true }));
 
 app.listen(process.env.PORT || 8080, () => console.log('🚀 Server running'));
