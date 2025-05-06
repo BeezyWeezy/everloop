@@ -4,7 +4,6 @@ import jwt     from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import dotenv  from 'dotenv';
 import path    from 'node:path';
-import fs      from 'node:fs';
 import crypto  from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -51,7 +50,7 @@ function isValidTG(reqBody) {
     const check = Object.entries(fields)
         .sort(([a],[b])=>a.localeCompare(b))
         .map(([k,v])=>`${k}=${v}`)
-        .join('\\n');
+        .join('\n');
     const hmac = crypto.createHmac('sha256', secret).update(check).digest('hex');
     return hmac === hash;
 }
@@ -77,6 +76,8 @@ app.post('/auth/telegram', async (req,res)=>{
     if(!isValidTG(req.body)) return res.status(401).json({error:'invalid hash'});
     const { id:telegram_id, username, first_name, last_name, photo_url } = req.body;
 
+    console.log(req.body);
+
     const user = await User.findOneAndUpdate(
         { telegram_id },
         { $set:{ username, first_name, last_name, photo_url } },
@@ -96,7 +97,7 @@ app.use(express.static(staticDir,{ extensions:['html','js','css'] }));
 //     res.type('html').send(html);
 // });
 
-app.get('/api/ping',(_,res)=>res.json({ok:true}));
+app.get('/api/ping',(_,res)=>res.json({ ok: true }));
 
 /* ───────────────────────── Start server ───────────────────────── */
 const PORT = process.env.PORT || 8080;
