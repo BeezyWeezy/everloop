@@ -94,13 +94,14 @@ app.post('/api/create-login-code', async (req, res) => {
 app.get('/bot-login', async (req, res) => {
     try {
         const { code } = req.query;
+        console.log('Processing login code:', code);
         if (!code) return res.status(400).send('Missing code parameter');
 
         const doc = await LoginCode.findOneAndDelete({
             code,
-            expires_at: { $gt: Date.now() }
+            expires_in: { $gt: new Date() }
         });
-        if (!doc) return res.status(410).send('Link expired');
+        if (!doc) return res.status(410).send('Link expired or invalid');
 
         const user = await User.findOne({ telegram_id: doc.telegram_id });
         if (!user) return res.status(401).send('User not found');
