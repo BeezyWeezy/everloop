@@ -103,9 +103,14 @@ app.get('/bot-login', async (req, res) => {
         });
         if (!doc) return res.status(410).send('Link expired or invalid');
 
-        const user = await User.findOne({ telegram_id: doc.telegram_id });
-        if (!user) return res.status(401).send('User not found');
-
+        // Find or create user
+        let user = await User.findOne({ telegram_id: doc.telegram_id });
+        if (!user) {
+            user = await User.create({
+                telegram_id: doc.telegram_id,
+                auth_date: Math.floor(Date.now() / 1000)
+            });
+        }
         issueJwtAndRedirect(res, user.telegram_id);
     } catch (error) {
         console.error('Bot login error:', error);
