@@ -8,29 +8,38 @@
         if (jwt) {
             connectWebSocket();
         } else {
-            window.location.href = '/';
+            // Redirect only if we're not already on the login page
+            if (window.location.pathname !== '/') {
+                window.location.href = '/';
+            }
         }
     }
     // Run check on page load
     checkAuthAndConnect();
-
     function connectWebSocket() {
+        if (ws) {
+            // Если соединение уже существует и открыто, не создаем новое
+            if (ws.readyState === WebSocket.OPEN) return;
+            // Если соединение в процессе открытия, тоже выходим
+            if (ws.readyState === WebSocket.CONNECTING) return;
+        }
         ws = new WebSocket(`ws://${window.location.host}`);
-
         ws.onopen = () => {
             console.log('WebSocket connected');
         };
-
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'auth_status' && data.status === 'logged_out') {
                 window.location.href = '/';
             }
         };
-
         ws.onclose = () => {
             console.log('WebSocket disconnected');
-            setTimeout(connectWebSocket, 5000);
+            // Проверяем наличие JWT перед переподключением
+            const jwt = document.cookie.split(';').find(c => c.trim().startsWith('jwt='));
+            if (jwt) {
+                setTimeout(connectWebSocket, 5000);
+            }
         };
     }
     window.onTelegramAuth = async function(user) {
