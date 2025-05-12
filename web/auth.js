@@ -1,6 +1,19 @@
 (function(){
     let ws;
 
+    // Check JWT and connect WebSocket on page load
+    function checkAuthAndConnect() {
+        const cookies = document.cookie.split(';');
+        const jwt = cookies.find(c => c.trim().startsWith('jwt='));
+        if (jwt) {
+            connectWebSocket();
+        } else {
+            window.location.href = '/';
+        }
+    }
+    // Run check on page load
+    checkAuthAndConnect();
+
     function connectWebSocket() {
         ws = new WebSocket(`ws://${window.location.host}`);
 

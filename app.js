@@ -18,7 +18,8 @@ await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 }
 console.log('✅ Mongo connected:', mongoose.connection.name);
 
 const app = express();
-const wss = new WebSocketServer({ server: app.listen(process.env.PORT || 3000) });
+const server = app.listen(process.env.PORT || 3000);
+const wss = new WebSocketServer({ server });
 // Хранение активных соединений
 const connections = new Map();
 wss.on('connection', (ws, req) => {
