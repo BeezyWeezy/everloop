@@ -16,8 +16,6 @@ const __dirname  = path.dirname(__filename);
 await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
 console.log('✅ Mongo connected:', mongoose.connection.name);
 
-dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(cookieParser());
@@ -25,17 +23,26 @@ app.use(express.json());
 
 // Dummy schema
 const UserSchema = new mongoose.Schema({
-    telegram_id: { type: Number, unique: true },
+    telegram_id: {
+        type: Number,
+        unique: true,
+        required: true,
+        min: 1
+    },
     username: String,
     first_name: String,
     last_name: String,
-    auth_date: Number // Unix timestamp from Telegram
+    auth_date: {
+        type: Number,
+        required: true
+    }
 });
+
 const User = mongoose.model('User', UserSchema);
 
 const LoginCodeSchema = new mongoose.Schema({
     code: { type: String, unique: true },
-    telegram_id: { type: Number, unique: true },
+    telegram_id: { type: Number },
     expires_in: Date,
 });
 
@@ -85,12 +92,24 @@ app.post('/api/create-login-code', async (req, res) => {
 
 /* ─── User opens link from bot ─── */
 app.get('/bot-login', async (req, res) => {
-    const { code } = req.query;
-    const doc = await LoginCode.findOneAndDelete({ code, expires_at: { $gt: Date.now() } });
-    if (!doc) return res.status(410).send('Link expired');
-    const user = await User.findOne({ telegram_id: doc.telegram_id });
-    if (!user) return res.status(401).send('User not found');
-    issueJwtAndRedirect(res, user.telegram_id);
+    try {
+        const { code } = req.query;
+        if (!code) return res.status(400).send('Missing code parameter');
+
+        const doc = await LoginCode.findOneAndDelete({
+            code,
+            expires_at: { $gt: Date.now() }
+        });
+        if (!doc) return res.status(410).send('Link expired');
+
+        const user = await User.findOne({ telegram_id: doc.telegram_id });
+        if (!user) return res.status(401).send('User not found');
+
+        issueJwtAndRedirect(res, user.telegram_id);
+    } catch (error) {
+        console.error('Bot login error:', error);
+        res.status(500).send('Internal server error');
+    }
 });
 
 /* ─── Helper to set cookie + redirect ─── */
