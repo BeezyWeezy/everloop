@@ -47,7 +47,11 @@ bot.command('login', async ctx => {
         });
         if (!response.ok) {
             const text = await response.text();
-            console.error('Login code creation failed:', response.status, text);
+            console.error('Login code creation failed:', {
+                status: response.status,
+                text,
+                telegram_id: ctx.from.id
+            });
             return ctx.reply('⚠️ Не удалось получить ссылку для входа, попробуйте позже.');
         }
         const { url } = await response.json();
