@@ -116,15 +116,7 @@ app.get('/auth/telegram', async (req, res) => {
         { upsert: true, new: true }
     );
     console.log('Saved user:', user);
-    issueJwtAndRedirect(res, id);
-
-    const token = jwt.sign({ telegram_id: id }, process.env.JWT_SECRET, { expiresIn: '24h' });
-    res.cookie('jwt', token, {
-          httpOnly: true,
-          sameSite: 'lax',
-          maxAge: 24 * 3600 * 1000 // 1day
-    });
-    res.redirect('/dashboard.html');
+    return issueJwtAndRedirect(res, id);
 });
 
 /* ─── Bot creates one‑time login URL ─── */
@@ -166,9 +158,14 @@ app.get('/bot-login', async (req, res) => {
 
 /* ─── Helper to set cookie + redirect ─── */
 function issueJwtAndRedirect(res, telegram_id) {
-    const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
-    res.cookie('jwt', token, { httpOnly: true, sameSite: 'lax', maxAge: 86400_000 });
-    res.redirect('/dashboard.html');
+    try {
+        const token = jwt.sign({ telegram_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+        res.cookie('jwt', token, { httpOnly: true, sameSite: 'lax', maxAge: 86400_000 });
+        res.redirect('/dashboard.html');
+    } catch (error) {
+        console.error('Error issuing JWT:', error);
+        res.status(500).send('Internal server error during authentication');
+    }
 }
 
 /* ─── Auth middleware ─── */
