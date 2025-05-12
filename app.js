@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { v4 as uuid } from 'uuid';
+import { WebSocketServer } from 'ws';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,50 @@ await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 }
 console.log('✅ Mongo connected:', mongoose.connection.name);
 
 const app = express();
+const wss = new WebSocketServer({ server: app.listen(process.env.PORT || 3000) });
+// Хранение активных соединений
+const connections = new Map();
+wss.on('connection', (ws, req) => {
+    // Получаем JWT из cookie при подключении
+    const token = req.headers.cookie?.split(';')
+        .find(c => c.trim().startsWith('jwt='))
+        ?.split('=')[1];
+    if (token) {
+        try {
+            const payload = jwt.verify(token, process.env.JWT_SECRET);
+            ws.telegram_id = payload.telegram_id;
+
+            // Сохраняем соединение
+            if (!connections.has(payload.telegram_id)) {
+                connections.set(payload.telegram_id, new Set());
+            }
+            connections.get(payload.telegram_id).add(ws);
+
+            // Очистка при закрытии соединения
+            ws.on('close', () => {
+                const userConnections = connections.get(payload.telegram_id);
+                if (userConnections) {
+                    userConnections.delete(ws);
+                    if (userConnections.size === 0) {
+                        connections.delete(payload.telegram_id);
+                    }
+                }
+            });
+        } catch {
+            ws.close();
+        }
+    }
+});
+// Функция для отправки уведомлений всем подключенным клиентам пользователя
+// function notifyUserClients(telegram_id, message) {
+//     const userConnections = connections.get(telegram_id);
+//     if (userConnections) {
+//         const messageStr = JSON.stringify(message);
+//         for (const ws of userConnections) {
+//             ws.send(messageStr);
+//         }
+//     }
+// }
 app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
@@ -146,7 +191,7 @@ app.get('/api/ping', authRequired, (_, res) => res.json({ ok: true }));
 /* ─── Logout ─── */
 app.get('/logout', (_req, res) => {
     res.clearCookie('jwt', { sameSite: 'lax' });
-    return res.redirect('/');
+    res.redirect('/');
 });
 
 const staticDir = path.join(__dirname, 'web');
