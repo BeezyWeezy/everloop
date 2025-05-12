@@ -23,13 +23,21 @@
             // Если соединение в процессе открытия, тоже выходим
             if (ws.readyState === WebSocket.CONNECTING) return;
         }
-        ws = new WebSocket(`ws://${window.location.host}`);
+        // Отправка запроса на валидацию сессии после установки соединения
+        ws = new WebSocket('ws://' + window.location.host);
+        const validateSession = () => {
+            ws.send(JSON.stringify({ type: 'validate_session' }));
+        };
+
         ws.onopen = () => {
             console.log('WebSocket connected');
+            validateSession(); // Проверяем сессию сразу после подключения
         };
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            if (data.type === 'auth_status' && data.status === 'logged_out') {
+            console.log(data);
+            if (data.type === 'auth_status' && data.status === 'logged_out' ||
+                data.type === 'session_status' && data.status === 'invalid') {
                 window.location.href = '/';
             }
         };
